@@ -31,7 +31,8 @@ else: unix:!android: target.path = /opt/$${TARGET}/bin
 DISTFILES += \
     images/Pencil.png \
     images/Width.png \
-    images/fill.png
+    images/fill.png \
+    images/main icon.png
 
 RESOURCES += \
     images.qrc

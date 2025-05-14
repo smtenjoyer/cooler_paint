@@ -5,6 +5,9 @@
 int main(int argc, char *argv[])
 {
     QApplication a(argc, argv);
+
+    qApp->setWindowIcon(QIcon(":/images/main_icon.png"));
+
     qApp->setStyle(QStyleFactory::create("Fusion"));
     QPalette p = qApp->palette();
     p.setColor(QPalette::Window, QColor(53,53,53));

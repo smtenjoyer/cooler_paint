@@ -2,6 +2,7 @@
     <qresource prefix="/">
         <file>images/Color.png</file>
         <file>images/fill.png</file>
+        <file>images/main_icon.png</file>
         <file>images/Pencil.png</file>
         <file>images/Width.png</file>
     </qresource>
