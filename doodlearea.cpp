@@ -7,14 +7,21 @@
 #endif
 #endif
 
+
 #include "doodlearea.h"
+#include "drawlinecommand.h"
 
 DoodleArea::DoodleArea(QWidget *parent) : QWidget(parent) {
-    setAttribute(Qt::WA_StaticContents); //21:20
+    setAttribute(Qt::WA_StaticContents);
     doodling = false;
     myPenWidth = 1;
     myPenColor = Qt::blue;
+    currentTool = Pencil;
+    undoStack = new QUndoStack(this);
+}
 
+QUndoStack* DoodleArea::getUndoStack() const {
+    return undoStack;
 }
 
 bool DoodleArea::openImage(const QString &fileName){
@@ -55,10 +62,18 @@ void DoodleArea::clearImage(){
     update();
 }
 
+
 void DoodleArea::mousePressEvent(QMouseEvent *event){
     if(event->button()==Qt::LeftButton){
-        lastPoint = event->pos();
-        doodling = true;
+        switch (currentTool) {
+        case Pencil:
+            lastPoint = event->pos();
+            doodling = true;
+            break;
+        case Fill:
+            fillArea(event->pos());
+            break;
+        }
     }
 }
 
@@ -71,6 +86,11 @@ void DoodleArea::mouseReleaseEvent(QMouseEvent *event){
         drawLineTo(event->pos());
         doodling = false;
     }
+}
+
+void DoodleArea::setTool(Tool tool) {
+    currentTool = tool;
+    doodling = (tool == Pencil);
 }
 
 void DoodleArea::paintEvent(QPaintEvent *event){
@@ -90,6 +110,7 @@ void DoodleArea::resizeEvent(QResizeEvent *event){
 }
 
 void DoodleArea::drawLineTo(const QPoint &endPoint){
+
     QPainter painter(&image);
     painter.setPen(QPen(myPenColor, myPenWidth, Qt::SolidLine, Qt::RoundCap, Qt::RoundJoin));
     painter.drawLine(lastPoint, endPoint);
@@ -97,6 +118,14 @@ void DoodleArea::drawLineTo(const QPoint &endPoint){
     int rad = (myPenWidth / 2) + 2;
     update(QRect(lastPoint, endPoint).normalized().adjusted(-rad, -rad, +rad, +rad));
     lastPoint = endPoint;
+}
+
+QImage DoodleArea::getImage() const {
+    return image;
+}
+
+void DoodleArea::setImage(const QImage &newImage) {
+    image = newImage;
 }
 
 void DoodleArea::resizeImage(QImage *image, const QSize &newSize){
@@ -111,13 +140,50 @@ void DoodleArea::resizeImage(QImage *image, const QSize &newSize){
     *image = newImage;
 }
 
+void DoodleArea::fillArea(const QPoint &seedPoint) {
+    if (!image.valid(seedPoint)) {
+        qDebug() << "Seed point is invalid!";
+        return; // Защита от выхода за границы изображения
+    }
+
+    QColor targetColor = image.pixelColor(seedPoint); // Цвет области, которую нужно залить
+    if (targetColor == myPenColor) {
+        // Область уже залита этим цветом, ничего не делаем
+        return;
+    }
+
+    QQueue<QPoint> pointsToFill; // Очередь точек для заливки
+    pointsToFill.enqueue(seedPoint); // Добавляем начальную точку в очередь
+
+    QImage newImage = image; // Создаем копию image для работы
+
+    while (!pointsToFill.isEmpty()) {
+        QPoint currentPoint = pointsToFill.dequeue();
+        int x = currentPoint.x();
+        int y = currentPoint.y();
+
+        // Проверка границ изображения уже выполняется image.valid(seedPoint)
+        if (!newImage.valid(currentPoint)) {
+            continue;
+        }
 
 
+        // Проверка, что текущая точка имеет целевой цвет
+        if (newImage.pixelColor(x, y) == targetColor) {
+            newImage.setPixelColor(x, y, myPenColor); // Заливаем пиксель новым цветом
+            // Добавляем соседние пиксели в очередь
+            pointsToFill.enqueue(QPoint(x + 1, y));
+            pointsToFill.enqueue(QPoint(x - 1, y));
+            pointsToFill.enqueue(QPoint(x, y + 1));
+            pointsToFill.enqueue(QPoint(x, y - 1));
+        }
+    }
 
+    image = newImage; // Заменяем исходное изображение новой версией
 
-
-
-
+    modified = true;
+    update();
+}
 
 
 

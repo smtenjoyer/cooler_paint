@@ -2,8 +2,15 @@
 #define MAINWINDOW_H
 
 #include <QMainWindow>
-#include <QMouseEvent> // Для обработки событий мыши
-// #include <QScrollArea>
+#include <QMouseEvent>
+#include <QDialog>
+#include <QSlider>
+#include <QLabel>
+#include <QVBoxLayout>
+#include <QPainter>
+#include <QColorDialog>
+#include <QQueue>
+#include <QToolBar>
 
 QT_BEGIN_NAMESPACE
 namespace Ui { class MainWindow; }
@@ -18,15 +25,13 @@ class MainWindow : public QMainWindow
 public:
     MainWindow();
 
-
 protected:
     void closeEvent(QCloseEvent *event) override;
 
 private:
-    // Ui::MainWindow *ui;
-
     void createActions();
     void createMenus();
+    void createToolBars();
     bool maybeSave();
     bool saveFile(const QByteArray &fileFormet);
     DoodleArea *doodleArea;
@@ -34,15 +39,23 @@ private:
     QMenu *fileMenu;
     QMenu *optionMenu;
     QMenu *helpMenu;
+    QMenu *editMenu;
     QAction *openAct;
     QList<QAction *> saveAsActs;
     QAction *penColorAct;
     QAction *penWidthAct;
     QAction *printAct;
     QAction *clearScreenAct;
-    QAction *aboutAct; //
-    QAction *aboutQtAct; //
+    QAction *aboutAct;
+    QAction *aboutQtAct;
     QAction *exitAct;
+    QAction *fillAreaAct;
+    QAction *PencilAct;
+
+    QToolBar *toolBar;
+
+    QAction *undoAct;
+    QAction *redoAct;
 
 private slots:
     void open();
@@ -50,8 +63,13 @@ private slots:
     void penColor();
     void penWidth();
     void about();
-};
+    void updateBrushPreview(QLabel *label, int width, QColor color);
 
-// ~MainWindow();
+    void setFillTool();
+    void setPencilTool();
+
+    void undo();
+    void redo();
+};
 
 #endif // MAINWINDOW_H
