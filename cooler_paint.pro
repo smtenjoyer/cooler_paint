@@ -10,14 +10,12 @@ CONFIG += c++17
 SOURCES += \
     command.cpp \
     doodlearea.cpp \
-    drawlinecommand.cpp \
     main.cpp \
     mainwindow.cpp
 
 HEADERS += \
     command.h \
     doodlearea.h \
-    drawlinecommand.h \
     mainwindow.h
 
 FORMS += \

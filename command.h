@@ -1,20 +1,29 @@
 #ifndef COMMAND_H
 #define COMMAND_H
 
-#include <QUndoCommand> //Используем класс, предоставляемый Qt
+#include <QUndoCommand>
+#include <QPointF>
+#include <QColor>
 #include <QImage>
 
 class DoodleArea; // Forward declaration
 
-class Command : public QUndoCommand
-{
+class DrawLineCommand : public QUndoCommand {
 public:
-    Command(DoodleArea *area, const QString &text = QString());
-    virtual ~Command() {}
+    DrawLineCommand(DoodleArea *area, const QPointF &startPoint, const QPointF &endPoint,
+                    const QColor &color, int width);
 
-protected:
-    DoodleArea *doodleArea;
+    void undo() override;
+    void redo() override;
+
+private:
+    DoodleArea *area;
+    QPointF startPoint;
+    QPointF endPoint;
+    QColor color;
+    int width;
+    QImage oldImage;
 };
-
 #endif // COMMAND_H
+
 

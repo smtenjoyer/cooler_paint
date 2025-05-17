@@ -11,6 +11,7 @@
 #include <QColorDialog>
 #include <QQueue>
 #include <QToolBar>
+#include <QScrollArea>
 
 QT_BEGIN_NAMESPACE
 namespace Ui { class MainWindow; }
@@ -29,12 +30,20 @@ protected:
     void closeEvent(QCloseEvent *event) override;
 
 private:
+    void newCanvas();
+
     void createActions();
     void createMenus();
     void createToolBars();
     bool maybeSave();
     bool saveFile(const QByteArray &fileFormet);
-    DoodleArea *doodleArea;
+
+    QAction *newAction;
+
+    DoodleArea *doodleArea = nullptr;
+    QScrollArea *scrollArea = nullptr;
+
+
     QMenu *saveAsMenu;
     QMenu *fileMenu;
     QMenu *optionMenu;
@@ -51,11 +60,16 @@ private:
     QAction *exitAct;
     QAction *fillAreaAct;
     QAction *PencilAct;
+    QAction *RubberAct;
+    QAction *lineAction;
+    QAction *rectangleAction;
+    QAction *ellipseAction;
+
+    QAction *undoActionBtn;
+    QAction *redoActionBtn;
+
 
     QToolBar *toolBar;
-
-    QAction *undoAct;
-    QAction *redoAct;
 
 private slots:
     void open();
@@ -67,9 +81,14 @@ private slots:
 
     void setFillTool();
     void setPencilTool();
+    void setRubberTool();
 
-    void undo();
-    void redo();
+    void setLineTool();
+    void setRectangleTool();
+    void setEllipseTool();
+    void undoAction();
+    void redoAction();
+
 };
 
 #endif // MAINWINDOW_H

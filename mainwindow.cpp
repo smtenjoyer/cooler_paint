@@ -5,7 +5,7 @@
 
 MainWindow::MainWindow()
 {
-    doodleArea = new DoodleArea;
+    doodleArea = new DoodleArea();
     setCentralWidget(doodleArea);
     createActions();
     createMenus();
@@ -14,17 +14,7 @@ MainWindow::MainWindow()
     resize(500, 500);
 }
 
-void MainWindow::createToolBars() {
-    toolBar = new QToolBar(this);
-    addToolBar(Qt::LeftToolBarArea, toolBar);
 
-    toolBar->addAction(PencilAct);
-    toolBar->addAction(fillAreaAct);
-
-    toolBar->addSeparator();
-    toolBar->addAction(penColorAct);
-    toolBar->addAction(penWidthAct);
-}
 
 void MainWindow::closeEvent(QCloseEvent *event){
     if(maybeSave()){
@@ -104,17 +94,12 @@ void MainWindow::about(){
                        tr("<p> This is <b>cooler</b> paint for win11 </p>"));
 }
 
-void MainWindow::undo()
-{
-    doodleArea->getUndoStack()->undo();
-}
-
-void MainWindow::redo()
-{
-    doodleArea->getUndoStack()->redo();
-}
 
 void MainWindow::createActions(){
+    newAction = new QAction(tr("&Ноывй холст"), this);
+    newAction->setShortcut(QKeySequence::New);
+    connect(newAction, &QAction::triggered, this, &MainWindow::newCanvas);
+
     openAct = new QAction(tr("&Открыть"), this);
     openAct->setShortcuts(QKeySequence::Open);
     connect(openAct, SIGNAL(triggered()), this, SLOT(open()));
@@ -126,6 +111,11 @@ void MainWindow::createActions(){
         saveAsActs.append(action);
     }
 
+    clearScreenAct = new QAction(tr("&Очистить изображение..."), this);
+    clearScreenAct->setShortcut(tr("Ctrl+L"));
+    connect(clearScreenAct, SIGNAL(triggered()), doodleArea, SLOT(clearImage()));
+
+
     exitAct = new QAction(tr("В&ыйти"), this);
     exitAct->setShortcuts(QKeySequence::Quit);
     connect(exitAct, SIGNAL(triggered()), this, SLOT(close()));
@@ -135,15 +125,51 @@ void MainWindow::createActions(){
     penWidthAct = new QAction(QIcon(":/images/Width.png"), "Толщина линии", this);
     connect(penWidthAct, SIGNAL(triggered()), this, SLOT(penWidth()));
 
-    clearScreenAct = new QAction(tr("&Очистить изображение..."), this);
-    clearScreenAct->setShortcut(tr("Ctrl+L"));
-    connect(clearScreenAct, SIGNAL(triggered()), doodleArea, SLOT(clearImage()));
+
 
     fillAreaAct = new QAction(QIcon(":/images/fill.png"), "Заливка", this);
     connect(fillAreaAct, SIGNAL(triggered()), this, SLOT(setFillTool()));
 
     PencilAct = new QAction(QIcon(":/images/Pencil.png"), "Карандаш", this);
+    RubberAct = new QAction(QIcon(":/images/Pencil.png"), "Ластик", this);
+
+    lineAction = new QAction(QIcon(":/images/Line.png"), tr("&Line"), this);
+
+    rectangleAction = new QAction(QIcon(":/images/Rectangle.png"), tr("&Rectangle"), this);
+
+    ellipseAction = new QAction(QIcon(":/images/Ellipse.png"), tr("&Ellipse"), this);
+
+
+    undoActionBtn = new QAction(tr("&Undo"), this);
+    undoActionBtn->setShortcut(QKeySequence::Undo);
+    connect(undoActionBtn, &QAction::triggered, this, &MainWindow::undoAction);
+
+    redoActionBtn = new QAction(tr("&Redo"), this);
+    redoActionBtn->setShortcut(QKeySequence::Redo);
+    connect(redoActionBtn, &QAction::triggered, this, &MainWindow::redoAction);
+
+    QActionGroup *toolGroup = new QActionGroup(this);
+    toolGroup->addAction(PencilAct);
+    toolGroup->addAction(RubberAct);
+    toolGroup->addAction(fillAreaAct);
+    toolGroup->addAction(lineAction);
+    toolGroup->addAction(rectangleAction);
+    toolGroup->addAction(ellipseAction);
+
+    PencilAct->setCheckable(true);
+    fillAreaAct->setCheckable(true);
+    lineAction->setCheckable(true);
+    rectangleAction->setCheckable(true);
+    ellipseAction->setCheckable(true);
+
+    PencilAct->setChecked(true);
+
     connect(PencilAct, SIGNAL(triggered()), this, SLOT(setPencilTool()));
+    connect(RubberAct, SIGNAL(triggered()), this, SLOT(setRubberTool()));
+    connect(fillAreaAct, SIGNAL(triggered()), this, SLOT(setFillTool()));
+    connect(lineAction, &QAction::triggered, this, &MainWindow::setLineTool);
+    connect(rectangleAction, &QAction::triggered, this, &MainWindow::setRectangleTool);
+    connect(ellipseAction, &QAction::triggered, this, &MainWindow::setEllipseTool);
 
     aboutAct = new QAction(tr("&О программе..."), this);
     connect(aboutAct, SIGNAL(triggered()), SLOT(about()));
@@ -151,19 +177,8 @@ void MainWindow::createActions(){
     connect(aboutQtAct, SIGNAL(triggered()), qApp, SLOT(aboutQt()));
 
 
-    undoAct = new QAction(tr("&Undo"), this);
-    undoAct->setShortcut(tr("Ctrl+Z"));
-    redoAct = new QAction(tr("&Redo"), this);
-    redoAct->setShortcut(tr("Ctrl+Y"));
-
-    undoAct->setEnabled(false);
-    redoAct->setEnabled(false);
-
-    connect(undoAct, &QAction::triggered, doodleArea->getUndoStack(), &QUndoStack::undo);
-    connect(redoAct, &QAction::triggered, doodleArea->getUndoStack(), &QUndoStack::redo);
-
-    connect(doodleArea->getUndoStack(), &QUndoStack::canUndoChanged, undoAct, &QAction::setEnabled);
-    connect(doodleArea->getUndoStack(), &QUndoStack::canRedoChanged, redoAct, &QAction::setEnabled);
+    undoActionBtn->setShortcut(tr("Ctrl+Z"));
+    redoActionBtn->setShortcut(tr("Ctrl+Y"));
 }
 
 
@@ -172,13 +187,14 @@ void MainWindow::createMenus(){
     foreach (QAction *action, saveAsActs)
         saveAsMenu->addAction(action);
     fileMenu = new QMenu(tr("&Файл"), this);
+    fileMenu->addAction(newAction);
+    fileMenu->addSeparator();
     fileMenu->addAction(openAct);
     fileMenu->addMenu(saveAsMenu);
     fileMenu->addSeparator();
     fileMenu->addAction(exitAct);
 
     optionMenu = new QMenu(tr("&Настройки"), this);
-    optionMenu->addSeparator();
     optionMenu->addAction(clearScreenAct);
 
     helpMenu = new QMenu(tr("&Помощь"), this);
@@ -186,14 +202,32 @@ void MainWindow::createMenus(){
     helpMenu->addAction(aboutQtAct);
 
     editMenu = new QMenu(tr("&Правка"), this);
-    editMenu->addAction(undoAct);
-    editMenu->addAction(redoAct);
+    editMenu->addAction(undoActionBtn);
+    editMenu->addAction(redoActionBtn);
 
     menuBar()->addMenu(fileMenu);
     menuBar()->addMenu(optionMenu);
     menuBar()->addMenu(helpMenu);
     menuBar()->addMenu(editMenu);
+
 }
+
+void MainWindow::createToolBars() {
+    toolBar = new QToolBar(this);
+    addToolBar(Qt::LeftToolBarArea, toolBar);
+
+    toolBar->addAction(PencilAct);
+    toolBar->addAction(RubberAct);
+    toolBar->addAction(fillAreaAct);
+    toolBar->addAction(lineAction);
+    toolBar->addAction(rectangleAction);
+    toolBar->addAction(ellipseAction);
+
+    toolBar->addSeparator();
+    toolBar->addAction(penColorAct);
+    toolBar->addAction(penWidthAct);
+}
+
 
 void MainWindow::setFillTool() {
     doodleArea->setTool(DoodleArea::Fill);
@@ -201,6 +235,38 @@ void MainWindow::setFillTool() {
 
 void MainWindow::setPencilTool() {
     doodleArea->setTool(DoodleArea::Pencil);
+}
+void MainWindow::setRubberTool() {
+    doodleArea->setTool(DoodleArea::Rubber);
+}
+void MainWindow::setLineTool() {
+    if(doodleArea){
+        doodleArea->setTool(DoodleArea::Line);
+    }
+}
+
+void MainWindow::setRectangleTool() {
+    if(doodleArea){
+        doodleArea->setTool(DoodleArea::Rectangle);
+    }
+}
+
+void MainWindow::setEllipseTool() {
+    if(doodleArea){
+        doodleArea->setTool(DoodleArea::Ellipse);
+    }
+}
+
+void MainWindow::undoAction() {
+    if (doodleArea) {
+        doodleArea->undo();
+    }
+}
+
+void MainWindow::redoAction() {
+    if (doodleArea) {
+        doodleArea->redo();
+    }
 }
 
 bool MainWindow::maybeSave(){
@@ -231,5 +297,55 @@ bool MainWindow::saveFile(const QByteArray &fileFormat){
         return false;
     } else {
         return doodleArea->saveImage(fileName, fileFormat.constData());
+    }
+}
+
+void MainWindow::newCanvas() {
+    QDialog dialog(this);
+    dialog.setWindowTitle(tr("Новый холст"));
+
+    QFormLayout form(&dialog);
+
+    QLineEdit *widthEdit = new QLineEdit(&dialog);
+    widthEdit->setValidator(new QIntValidator(1, 2000, this));
+    widthEdit->setText("1920");
+    form.addRow(tr("Ширина:"), widthEdit);
+
+    QLineEdit *heightEdit = new QLineEdit(&dialog);
+    heightEdit->setValidator(new QIntValidator(1, 2000, this));
+    heightEdit->setText("1080");
+    form.addRow(tr("Высота:"), heightEdit);
+
+    QDialogButtonBox buttonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel,
+                               Qt::Horizontal, &dialog);
+    form.addRow(&buttonBox);
+
+    QObject::connect(&buttonBox, SIGNAL(accepted()), &dialog, SLOT(accept()));
+    QObject::connect(&buttonBox, SIGNAL(rejected()), &dialog, SLOT(reject()));
+
+    if (dialog.exec() == QDialog::Accepted) {
+        bool okWidth, okHeight;
+        int width = widthEdit->text().toInt(&okWidth);
+        int height = heightEdit->text().toInt(&okHeight);
+
+        if (okWidth && okHeight) {
+            QSize size(width, height);
+
+            if (doodleArea) {
+                delete doodleArea;
+            }
+            doodleArea = new DoodleArea(size);
+
+            if (!scrollArea) {
+                scrollArea = new QScrollArea;
+                scrollArea->setWidgetResizable(true);
+                setCentralWidget(scrollArea);
+            }
+
+            scrollArea->setWidget(doodleArea);
+            doodleArea->show();
+        } else {
+            QMessageBox::warning(this, tr("Ошибка"), tr("Пожалуйста, введите корректные числа от 1 до 2000."));
+        }
     }
 }

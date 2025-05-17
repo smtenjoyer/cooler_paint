@@ -1,15 +1,6 @@
 #include <QtWidgets>
-#if defined(QT_PRINTSUPPORT_LIB)
-#include <QtPrintSupport/qtprintsupportglobal.h>
-#if QT_CONFIG(printdialog)
-#include <QPrinter>
-#include <QPrintDialog>
-#endif
-#endif
-
-
 #include "doodlearea.h"
-#include "drawlinecommand.h"
+#include "command.h"
 
 DoodleArea::DoodleArea(QWidget *parent) : QWidget(parent) {
     setAttribute(Qt::WA_StaticContents);
@@ -18,11 +9,28 @@ DoodleArea::DoodleArea(QWidget *parent) : QWidget(parent) {
     myPenColor = Qt::blue;
     currentTool = Pencil;
     undoStack = new QUndoStack(this);
+    setMouseTracking(true);
 }
 
-QUndoStack* DoodleArea::getUndoStack() const {
-    return undoStack;
+DoodleArea::DoodleArea(const QSize& size, QWidget *parent) : QWidget(parent) {
+    setAttribute(Qt::WA_StaticContents);
+    doodling = false;
+    myPenWidth = 1;
+    myPenColor = Qt::blue;
+    currentTool = Pencil;
+    undoStack = new QUndoStack(this);
+    setMouseTracking(true);
+
+    image = QImage(size, QImage::Format_ARGB32_Premultiplied);
+    image.fill(Qt::white);
+    setFixedSize(size);
 }
+void DoodleArea::setScaleFactor(double scaleFactor) {
+    m_scaleFactor = scaleFactor;
+    update();
+}
+
+
 
 bool DoodleArea::openImage(const QString &fileName){
     QImage loadedImage;
@@ -57,7 +65,7 @@ void DoodleArea::setPenWidth(int newWidth){
 }
 
 void DoodleArea::clearImage(){
-    image.fill(qRgb(255,255,255));
+    image.fill(QColor(255,255,255));
     modified = true;
     update();
 }
@@ -65,46 +73,84 @@ void DoodleArea::clearImage(){
 
 void DoodleArea::mousePressEvent(QMouseEvent *event){
     if(event->button()==Qt::LeftButton){
-        switch (currentTool) {
-        case Pencil:
+        if (currentTool == Fill) {
+            fillArea(event->pos());
+        } else if (currentTool == Pencil
+                   ||currentTool == Rubber
+                   || currentTool == Rectangle
+                   || currentTool == Ellipse
+                   || currentTool == Line ){
             lastPoint = event->pos();
             doodling = true;
-            break;
-        case Fill:
-            fillArea(event->pos());
-            break;
         }
     }
 }
 
-void DoodleArea::mouseMoveEvent(QMouseEvent *event){
-    if((event->buttons() & Qt::LeftButton) && doodling)
-        drawLineTo(event->pos());
+void DoodleArea::mouseMoveEvent(QMouseEvent *event) {
+    if (doodling) {
+        QPoint endPoint = event->pos();
+        if (currentTool == Pencil || currentTool == Rubber) {
+            drawLineTo(endPoint);
+        } else {
+            update();
+        }
+    }
 }
-void DoodleArea::mouseReleaseEvent(QMouseEvent *event){
-    if(event->button() == Qt::LeftButton && doodling){
-        drawLineTo(event->pos());
+
+void DoodleArea::mouseReleaseEvent(QMouseEvent *event) {
+    if (event->button() == Qt::LeftButton && doodling) {
+        QPoint endPoint = event->pos();
+        if (currentTool != Pencil) {
+            drawShape(endPoint);
+        }
         doodling = false;
     }
 }
 
-void DoodleArea::setTool(Tool tool) {
+
+void DoodleArea::setTool(ShapeType tool) {
     currentTool = tool;
-    doodling = (tool == Pencil);
+    doodling = false;
 }
 
-void DoodleArea::paintEvent(QPaintEvent *event){
+void DoodleArea::undo() {
+    undoStack->undo();
+}
+
+void DoodleArea::redo() {
+    undoStack->redo();
+}
+
+void DoodleArea::paintEvent(QPaintEvent *event) {
     QPainter painter(this);
-    QRect dirtyRect = event->rect();
-    painter.drawImage(dirtyRect, image, dirtyRect);
+    painter.setRenderHint(QPainter::Antialiasing, true); // Для более гладкой отрисовки
+
+    // Сохраняем текущее состояние painter
+    painter.save();
+
+    painter.translate(m_offset);
+    painter.scale(m_scaleFactor, m_scaleFactor);
+
+    painter.drawImage(0, 0, image);
+
+    painter.restore();
+
+    QPen framePen(Qt::black, 1, Qt::SolidLine);
+    painter.setPen(framePen);
+    painter.setBrush(Qt::NoBrush);
+
+    QRect imageRect(m_offset.x(), m_offset.y(), image.width() * m_scaleFactor, image.height() * m_scaleFactor);
+    painter.drawRect(imageRect);
 }
 
-void DoodleArea::resizeEvent(QResizeEvent *event){
-    if(width() > image.width() || height() > image.height()){
-        int newWidth = qMax(width() + 128, image.width());
-        int newHeight = qMax(height() + 128, image.height());
-        resizeImage(&image, QSize(newWidth, newHeight));
-        update();
+void DoodleArea::resizeEvent(QResizeEvent *event) {
+    if (event->size().width() > image.width() || event->size().height() > image.height()) {
+        QImage newImage(event->size(), QImage::Format_ARGB32_Premultiplied);
+        newImage.fill(QColor(255,255,255));
+
+        QPainter painter(&newImage);
+        painter.drawImage(QPoint(0, 0), image);
+        image = newImage;
     }
     QWidget::resizeEvent(event);
 }
@@ -112,12 +158,21 @@ void DoodleArea::resizeEvent(QResizeEvent *event){
 void DoodleArea::drawLineTo(const QPoint &endPoint){
 
     QPainter painter(&image);
-    painter.setPen(QPen(myPenColor, myPenWidth, Qt::SolidLine, Qt::RoundCap, Qt::RoundJoin));
+    if (currentTool == Pencil){
+        painter.setPen(QPen(myPenColor, myPenWidth, Qt::SolidLine, Qt::RoundCap, Qt::RoundJoin));
+    } else if (currentTool == Rubber){
+        painter.setPen(QPen(QColor(255,255,255), myPenWidth, Qt::SolidLine, Qt::RoundCap, Qt::RoundJoin));
+    }
     painter.drawLine(lastPoint, endPoint);
     modified = true;
     int rad = (myPenWidth / 2) + 2;
     update(QRect(lastPoint, endPoint).normalized().adjusted(-rad, -rad, +rad, +rad));
+    QPointF scaledStartPoint = lastPoint;
+    QPointF scaledEndPoint = endPoint;
+    DrawLineCommand *command = new DrawLineCommand(this, scaledStartPoint, scaledEndPoint, myPenColor, myPenWidth);
+    undoStack->push(command);
     lastPoint = endPoint;
+    update();
 }
 
 QImage DoodleArea::getImage() const {
@@ -126,6 +181,10 @@ QImage DoodleArea::getImage() const {
 
 void DoodleArea::setImage(const QImage &newImage) {
     image = newImage;
+    if (imageItem) {
+        imageItem->setPixmap(QPixmap::fromImage(image));
+    }
+    update(); // Важно обновить виджет, чтобы увидеть изменения
 }
 
 void DoodleArea::resizeImage(QImage *image, const QSize &newSize){
@@ -143,10 +202,10 @@ void DoodleArea::resizeImage(QImage *image, const QSize &newSize){
 void DoodleArea::fillArea(const QPoint &seedPoint) {
     if (!image.valid(seedPoint)) {
         qDebug() << "Seed point is invalid!";
-        return; // Защита от выхода за границы изображения
+        return;
     }
 
-    QColor targetColor = image.pixelColor(seedPoint); // Цвет области, которую нужно залить
+    QColor targetColor = image.pixelColor(seedPoint); 
     if (targetColor == myPenColor) {
         // Область уже залита этим цветом, ничего не делаем
         return;
@@ -185,7 +244,30 @@ void DoodleArea::fillArea(const QPoint &seedPoint) {
     update();
 }
 
+void DoodleArea::drawShape(const QPoint &endPoint) {
+    QPainter painter(&image);
+    painter.setPen(QPen(myPenColor, myPenWidth, Qt::SolidLine));
 
+    switch (currentTool) {
+    case Line:
+        painter.drawLine(lastPoint, endPoint);
+        modified = true;
+        break;
+    case Rectangle:
+        painter.drawRect(QRect(lastPoint, endPoint).normalized());
+        modified = true;
+        break;
+    case Ellipse:
+        painter.drawEllipse(QRect(lastPoint, endPoint).normalized());
+        modified = true;
+        break;
+    default:
+        break;
+    }
+
+    update();
+    lastPoint = endPoint;
+}
 
 
 

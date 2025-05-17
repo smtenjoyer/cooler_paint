@@ -6,19 +6,26 @@
 #include <QPoint>
 #include <QWidget>
 #include <QUndoStack>
+#include <QScrollBar>
+#include <QGraphicsPixmapItem>
 
 class DoodleArea : public QWidget
 {
     Q_OBJECT
 
 public:
-    enum Tool {
+    enum ShapeType {
         Pencil,
-        Fill
+        Rubber,
+        Fill,
+        Line,
+        Rectangle,
+        Ellipse
     };
 
 public:
     DoodleArea(QWidget *parent = 0);
+    DoodleArea(const QSize& size, QWidget *parent = nullptr);
     bool openImage(const QString &filename);
     bool saveImage(const QString &filename, const char *fileFormat);
     void setPenColor(const QColor &newColor);
@@ -27,12 +34,17 @@ public:
     QColor penColor() const {return myPenColor;}
     int penWidth() const {return myPenWidth;}
     QUndoStack* getUndoStack() const;
-    void setTool(Tool tool);
+    void setTool(ShapeType tool);
     QImage getImage() const;
     void setImage(const QImage &newImage);
 
+    void setScaleFactor(double scaleFactor);
+    double scaleFactor() const { return m_scaleFactor; }
 public slots:
     void clearImage();
+
+    void undo();
+    void redo();
 
 private:
     void mousePressEvent(QMouseEvent *event) override;
@@ -42,20 +54,27 @@ private:
     void resizeEvent(QResizeEvent *event) override;
 
     void drawLineTo(const QPoint &endPoint);
+    void drawShape(const QPoint &endPoint);
     void resizeImage(QImage *image, const QSize &newSize);
-    void fillArea(const QPoint &seedPoint); // Делаем private
+    void fillArea(const QPoint &seedPoint);
 
-    bool modified;
+    bool modified = false;
     bool doodling;
+    bool shaping;
 
     QColor myPenColor;
     int myPenWidth;
 
     QImage image;
     QPoint lastPoint;
-    Tool currentTool;
+    ShapeType currentTool;
 
     QUndoStack *undoStack;
+    QGraphicsPixmapItem *imageItem;
+
+    double m_scaleFactor = 1.0;
+    QPoint m_offset;
+    QPoint m_lastMousePosition;
 };
 
 #endif // DOODLEAREA_H
