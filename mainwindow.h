@@ -64,7 +64,9 @@ private:
     QAction *lineAction;
     QAction *rectangleAction;
     QAction *ellipseAction;
+    QAction *TextAct;
 
+    QAction *resizeAction;
     QAction *undoActionBtn;
     QAction *redoActionBtn;
 
@@ -83,6 +85,7 @@ private slots:
     void setPencilTool();
     void setRubberTool();
 
+    void setTextTool();
     void setLineTool();
     void setRectangleTool();
     void setEllipseTool();

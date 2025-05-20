@@ -8,6 +8,7 @@
 #include <QUndoStack>
 #include <QScrollBar>
 #include <QGraphicsPixmapItem>
+#include <QLineEdit>
 
 class DoodleArea : public QWidget
 {
@@ -20,7 +21,8 @@ public:
         Fill,
         Line,
         Rectangle,
-        Ellipse
+        Ellipse,
+        Textt
     };
 
 public:
@@ -42,20 +44,25 @@ public:
     double scaleFactor() const { return m_scaleFactor; }
 public slots:
     void clearImage();
+    void resizeCanvas();
 
     void undo();
     void redo();
 
 private:
     void mousePressEvent(QMouseEvent *event) override;
+    void finishTextInput();
+
     void mouseMoveEvent(QMouseEvent *event) override;
     void mouseReleaseEvent(QMouseEvent *event) override;
     void paintEvent(QPaintEvent *event) override;
     void resizeEvent(QResizeEvent *event) override;
+    void setImageItem(QGraphicsPixmapItem *item);
 
     void drawLineTo(const QPoint &endPoint);
     void drawShape(const QPoint &endPoint);
     void resizeImage(QImage *image, const QSize &newSize);
+
     void fillArea(const QPoint &seedPoint);
 
     bool modified = false;
@@ -68,9 +75,15 @@ private:
     QImage image;
     QPoint lastPoint;
     ShapeType currentTool;
+    QPoint textInputStartPoint;
+    QLineEdit *textInput = nullptr;
+    bool isTextInputActive = false;
+    QFont textFont;
+    QColor textColor;
+
 
     QUndoStack *undoStack;
-    QGraphicsPixmapItem *imageItem;
+    QGraphicsPixmapItem *imageItem = nullptr;
 
     double m_scaleFactor = 1.0;
     QPoint m_offset;

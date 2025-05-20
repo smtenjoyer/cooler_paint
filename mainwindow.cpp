@@ -115,6 +115,8 @@ void MainWindow::createActions(){
     clearScreenAct->setShortcut(tr("Ctrl+L"));
     connect(clearScreenAct, SIGNAL(triggered()), doodleArea, SLOT(clearImage()));
 
+    resizeAction = new QAction(tr("&Изменить размер холста..."), this);
+    connect(resizeAction, SIGNAL(triggered()), doodleArea, SLOT(resizeCanvas()));
 
     exitAct = new QAction(tr("В&ыйти"), this);
     exitAct->setShortcuts(QKeySequence::Quit);
@@ -133,20 +135,19 @@ void MainWindow::createActions(){
     PencilAct = new QAction(QIcon(":/images/Pencil.png"), "Карандаш", this);
     RubberAct = new QAction(QIcon(":/images/Pencil.png"), "Ластик", this);
 
-    lineAction = new QAction(QIcon(":/images/Line.png"), tr("&Line"), this);
+    lineAction = new QAction(QIcon(":/images/Line.png"), tr("&Прямая"), this);
+    rectangleAction = new QAction(QIcon(":/images/Rectangle.png"), tr("&Ч"), this);
+    ellipseAction = new QAction(QIcon(":/images/Ellipse.png"), tr("&Э"), this);
 
-    rectangleAction = new QAction(QIcon(":/images/Rectangle.png"), tr("&Rectangle"), this);
+    TextAct = new QAction(QIcon(":/images/Pencil.png"), "Text", this);
 
-    ellipseAction = new QAction(QIcon(":/images/Ellipse.png"), tr("&Ellipse"), this);
+    // undoActionBtn = new QAction(tr("&Undo"), this);
+    // undoActionBtn->setShortcut(QKeySequence::Undo);
+    // connect(undoActionBtn, &QAction::triggered, this, &MainWindow::undoAction);
 
-
-    undoActionBtn = new QAction(tr("&Undo"), this);
-    undoActionBtn->setShortcut(QKeySequence::Undo);
-    connect(undoActionBtn, &QAction::triggered, this, &MainWindow::undoAction);
-
-    redoActionBtn = new QAction(tr("&Redo"), this);
-    redoActionBtn->setShortcut(QKeySequence::Redo);
-    connect(redoActionBtn, &QAction::triggered, this, &MainWindow::redoAction);
+    // redoActionBtn = new QAction(tr("&Redo"), this);
+    // redoActionBtn->setShortcut(QKeySequence::Redo);
+    // connect(redoActionBtn, &QAction::triggered, this, &MainWindow::redoAction);
 
     QActionGroup *toolGroup = new QActionGroup(this);
     toolGroup->addAction(PencilAct);
@@ -155,12 +156,14 @@ void MainWindow::createActions(){
     toolGroup->addAction(lineAction);
     toolGroup->addAction(rectangleAction);
     toolGroup->addAction(ellipseAction);
+    toolGroup->addAction(TextAct);
 
     PencilAct->setCheckable(true);
     fillAreaAct->setCheckable(true);
     lineAction->setCheckable(true);
     rectangleAction->setCheckable(true);
     ellipseAction->setCheckable(true);
+    TextAct->setCheckable(true);
 
     PencilAct->setChecked(true);
 
@@ -170,6 +173,7 @@ void MainWindow::createActions(){
     connect(lineAction, &QAction::triggered, this, &MainWindow::setLineTool);
     connect(rectangleAction, &QAction::triggered, this, &MainWindow::setRectangleTool);
     connect(ellipseAction, &QAction::triggered, this, &MainWindow::setEllipseTool);
+    connect(TextAct, &QAction::triggered, this, &MainWindow::setTextTool);
 
     aboutAct = new QAction(tr("&О программе..."), this);
     connect(aboutAct, SIGNAL(triggered()), SLOT(about()));
@@ -177,8 +181,8 @@ void MainWindow::createActions(){
     connect(aboutQtAct, SIGNAL(triggered()), qApp, SLOT(aboutQt()));
 
 
-    undoActionBtn->setShortcut(tr("Ctrl+Z"));
-    redoActionBtn->setShortcut(tr("Ctrl+Y"));
+    // undoActionBtn->setShortcut(tr("Ctrl+Z"));
+    // redoActionBtn->setShortcut(tr("Ctrl+Y"));
 }
 
 
@@ -196,14 +200,15 @@ void MainWindow::createMenus(){
 
     optionMenu = new QMenu(tr("&Настройки"), this);
     optionMenu->addAction(clearScreenAct);
+    optionMenu->addAction(resizeAction);
 
     helpMenu = new QMenu(tr("&Помощь"), this);
     helpMenu->addAction(aboutAct);
     helpMenu->addAction(aboutQtAct);
 
     editMenu = new QMenu(tr("&Правка"), this);
-    editMenu->addAction(undoActionBtn);
-    editMenu->addAction(redoActionBtn);
+    // editMenu->addAction(undoActionBtn);
+    // editMenu->addAction(redoActionBtn);
 
     menuBar()->addMenu(fileMenu);
     menuBar()->addMenu(optionMenu);
@@ -222,6 +227,7 @@ void MainWindow::createToolBars() {
     toolBar->addAction(lineAction);
     toolBar->addAction(rectangleAction);
     toolBar->addAction(ellipseAction);
+    toolBar->addAction(TextAct);
 
     toolBar->addSeparator();
     toolBar->addAction(penColorAct);
@@ -239,9 +245,16 @@ void MainWindow::setPencilTool() {
 void MainWindow::setRubberTool() {
     doodleArea->setTool(DoodleArea::Rubber);
 }
+
 void MainWindow::setLineTool() {
     if(doodleArea){
         doodleArea->setTool(DoodleArea::Line);
+    }
+}
+
+void MainWindow::setTextTool() {
+    if(doodleArea){
+        doodleArea->setTool(DoodleArea::Textt);
     }
 }
 
